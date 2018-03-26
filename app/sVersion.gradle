@@ -1,0 +1,126 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+ext {
+    versionFile = new File(project.rootDir, 'versions.json')
+
+    calculateVersionName = {
+        SemanticVersion version = this.readJson(versionFile)
+        return version.toVersionName()
+    }
+
+    calculateVersionCode = {
+        SemanticVersion version = this.readJson(versionFile)
+        return version.toVersionCode()
+    }
+}
+
+SemanticVersion readJson(File jsonFile) {
+
+    if (!jsonFile.exists()) throw new Exception("File '$jsonFile.path' missing!!!")
+
+    if (jsonFile.length() == 0) throw new Exception("File '$jsonFile.path' is empty!!!")
+
+    def parsedJson = new JsonSlurper().parseText(jsonFile.text)
+
+    SemanticVersion result = new SemanticVersion()
+    result.major = parsedJson.major
+    result.minor = parsedJson.minor
+    result.patch = parsedJson.patch
+
+    return result
+}
+
+/**
+ * Read SemanticVersion from json file, change it according to arguments, save the results and create commit message with tag
+ * @param major - true if need to increment major version
+ * @param minor - true if need to increment minor version
+ * @param patch - true if need to increment patch version
+ */
+void incrementVersionNumberAndSave(boolean major = false, boolean minor = false, boolean patch = false) {
+    println ("incrementVersionNumberAndSave major: $major minor: $minor patch: $patch")
+
+    if ( !(major || minor || patch)) return
+
+    SemanticVersion version = readJson(versionFile)
+    println "incrementVersion current: $version"
+
+    if (major) version.major++
+    if (minor) version.minor++
+    if (patch) version.patch++
+
+    println "incrementVersion updated: $version"
+
+    saveVersion(version)
+    commitChanges(version)
+}
+
+void saveVersion(SemanticVersion version) {
+
+    versionFile.write(JsonOutput.prettyPrint(version.toJson()))
+}
+
+private void commitChanges(SemanticVersion version) {
+
+    String versionName = version.toVersionName()
+
+    String addFileCommand = "git add '${versionFile}'"
+    String commitCommand = "git commit  -m 'VersionName ${versionName}'"
+
+    ['sh', '-c', addFileCommand].execute().text.trim()
+    ['sh', '-c', commitCommand].execute().text.trim()
+
+    // add a tag for commit, can be used later to collect release notes
+    String addTagCommand = "git tag -a v$versionName -m 'VersionName $versionName'"
+
+    ['sh', '-c', addTagCommand].execute().text.trim()
+}
+
+
+task incrementMajorVersion {
+    description "Increments major counter in ${versionFile}"
+    doFirst {
+        incrementVersionNumberAndSave(true, false, false)
+    }
+}
+
+
+task incrementMinorVersion {
+    description "Increments minor counter in ${versionFile}"
+    doFirst {
+        incrementVersionNumberAndSave(false, true, false)
+    }
+}
+
+
+task incrementPatchVersion {
+    description "Increments patch counter in ${versionFile}"
+    doFirst {
+        incrementVersionNumberAndSave(false, false, true)
+    }
+}
+
+
+class SemanticVersion {
+    int major = 0
+    int minor = 0
+    int patch = 0
+
+    @Override
+    public String toString() {
+        return "major=$major, minor=$minor, patch=$patch"
+    }
+
+    public String toVersionName() {
+        return "$major.$minor.$patch"
+//        return String.format("%d.%02d.%02d", major, minor, patch)
+    }
+
+    public int toVersionCode() {
+        return patch + 100 * minor + 10000 * major // 1.1.1 => 10101
+    }
+
+    public String toJson() {
+        return "{ \"major\": $major, \"minor\": $minor, \"patch\": $patch }"
+    }
+}

@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 apply plugin: 'kotlin-android-extensions'
+apply from: 'sVersion.gradle'
 
 android {
     compileSdkVersion 26
@@ -10,8 +11,8 @@ android {
         applicationId "com.example.oliver.semanticversion"
         minSdkVersion 19
         targetSdkVersion 26
-        versionCode 1
-        versionName "1.0"
+        versionCode calculateVersionCode()
+        versionName calculateVersionName()
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
