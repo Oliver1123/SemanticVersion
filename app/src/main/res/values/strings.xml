@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">SemanticVersion</string>
+
+    <string name="version_code">VersionCode: \'%d\'</string>
+    <string name="version_name">VersionName: \'%s\'</string>
+</resources>
